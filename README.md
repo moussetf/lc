@@ -40,7 +40,7 @@ recursive definitions. So `Y` above could equally have been defined by `Y = 'f.f
 
 The default behaviour can be modified using the following commands:
 
-- `!step on`: enable single-step mode, which shows and pauses at each intermediate step of
+- `!step on`: enable single-step mode, which pauses at each intermediate step of
   the reduction
 - `!inner on`: enable reducing the leftmost innermost redex first (as opposed
   to the leftmost outermost)
