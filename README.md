@@ -22,7 +22,7 @@ Diverging evaluations can be interrupted with Ctrl-C:
 ^C Interrupted
 ```
 
-It is also possible to define variables in the top-level scope:
+It is also possible to define names in the top-level scope:
 
 ```
 + Y = 'f.('x.f (x x)) ('x.f (x x))
