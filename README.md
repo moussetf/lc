@@ -32,9 +32,9 @@ It is also possible to define variables in the top-level scope:
 ```
 
 Symbols with top-level bindings are expanded only when necessary, i.e., when
-they appear as the first term in an application. Since the
-binding is already introduced at the time of definition, this enables the use of
-recursive definitions. So `Y` above could equally have been defined by `Y = 'f.f (Y f)`.
+they appear as the first term in an application. This enables self-referential;
+definitions, for instance, `Y` above could equally have been defined by `Y = 'f.f (Y f)`.
+The binding can be removed by entering `!unset Y`.
 
 ## Switches
 
