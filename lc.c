@@ -173,7 +173,7 @@ rtype reduce(term *t) {
 #define ws while (**buf == ' ' || **buf == '\n' || **buf == '\r') { (*buf)++; }
 #define c(C) if (**buf == C) { (*buf)++; } else fail;
 #define d(C) ws; c(C);
-#define s(S) do { char *s = *buf; char *t = S; while (*s && *t && (*s++) == (*t++)) {}; \
+#define s(S) do { char *s = *buf; char *t = S; while (*s && *t && *s == *t) {s++;t++;}; \
 	if (s - *buf == strlen(S)) *buf = s; else fail; } while (false);
 
 void *parse(void *(*p)(char **), char *buf) { char *b = buf; return p(&b); }
@@ -194,8 +194,8 @@ parser(p_assmt) { let(s, p_symbol); d('='); let(t, p_expr); d('\0'); ((sym *)s)-
 parser(p_expr_or_assmt) { try(p_assmt); let(t, p_expr); d('\0'); return t; }
 
 // Commands
-void *const ON = (void *)0x1;
-void *const OFF = (void *)0x2;
+void *const ON = (void *)1;
+void *const OFF = (void *)2;
 parser(p_on) { s("on"); return ON; }
 parser(p_toggle) { ws; try(p_on); s("off"); return OFF; }
 parser(p_innermost) { s("!inner "); let(t, p_toggle); strat_innermost = (t == ON); success; }
