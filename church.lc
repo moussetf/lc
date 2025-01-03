@@ -18,4 +18,4 @@ three = succ two
 four = succ three
 five = succ four
 
-fibonacci = Y ('rec.'n. if (iszero (pred n)) (succ zero) (plus (rec (pred n)) (rec (pred (pred n)))))
+fibonacci = Y ('rec.'n. if (iszero (pred n)) one (plus (rec (pred n)) (rec (pred (pred n)))))

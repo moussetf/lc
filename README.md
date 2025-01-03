@@ -41,7 +41,7 @@ it to first process all lines in the given file before launching the REPL. This 
 experimenting with the use of the lamdba calculus as a programming language (a pretty
 limited one obviously, as there is no way to interact with the system). For example,
 the included file `church.lc` contains a definition of the Fibonacci numbers using
-Church-encoded numerals:
+(unary) Church-encoded numerals:
 ```
 $ ./lc church.lc
 + show (fibonacci one)
