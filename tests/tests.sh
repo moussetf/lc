@@ -10,7 +10,9 @@ testcase "Alpha conv. II"       "('x. aa ('aa.'b.aa x)) aa"     "aa ('a.('b.a aa
 testcase "Alpha conv. III"      "('x. ('aa.'b.aa x) aa) aa"     "('b.aa aa)"
 testcase "Alpha conv. IV"       "('x. ('aa.'b.aa x) bb) aa"     "('b.bb aa)"
 testcase "Alpha conv. V"        "('x. 'b. ('a.a b) b x) b"      "('c.('a.a c) c b)"
-testcase "Variable expansion"   "f = 'b. b\n f X"               "X"
+
+testcase "Define names"         "f = 'b. b\n f X"               "X"
+testcase "Unset names"          "g = 'b. b\n !unset g\n g X"    "g X"
 
 testcase "Eta reduction I"      "'x. f x"                       "('x.f x)"
 testcase "Eta reduction II"     "!strong on\n 'x. f x"          "f"

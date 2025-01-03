@@ -202,7 +202,7 @@ parser(p_innermost) { s("!inner "); let(t, p_toggle); strat_innermost = (t == ON
 parser(p_strong) { s("!strong "); let(t, p_toggle); strat_weak = (t == OFF); success; }
 parser(p_step) { s("!step "); let(t, p_toggle); single_step = (t == ON); success; }
 parser(p_unset) { s("!unset "); let(t, p_symbol); ((sym *)t)->b = NULL; success; }
-parser(p_cmd) { try(p_innermost); try(p_strong); try(p_step); try(p_unset); fail; }
+parser(p_cmd) { ws; try(p_innermost); try(p_strong); try(p_step); try(p_unset); fail; }
 
 /****** Main loop ********/
 

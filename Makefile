@@ -2,7 +2,7 @@
 
 all: lc
 
-CFLAGS = -g
+CFLAGS = -g -Wall
 
 lc: lc.c
 	$(CC) $(CFLAGS) -o $@ $< -lreadline
