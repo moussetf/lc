@@ -37,7 +37,7 @@ definitions. For example, `Y` above could equally have been defined by `Y = 'f.f
 The binding can be removed by entering `!unset Y`.
 
 Finally, the program can be passed file names as command line arguments, causing
-it to first process all lines in the given file before launching the REPL. This allows
+it to first process all lines in the given files before launching the REPL. This allows
 experimenting with the use of the lamdba calculus as a programming language (a pretty
 limited one obviously, as there is no way to interact with the system). For example,
 the included file `church.lc` contains a definition of the Fibonacci numbers using
