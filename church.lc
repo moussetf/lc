@@ -1,0 +1,21 @@
+Y = 'f.('x.f (x x)) ('x.f (x x))
+compose = 'f.'g.'x.f (g x)
+
+true = 'x.'y.x
+false = 'x.'y.y
+if = 'p.'a.'b.p a b
+
+zero = 'f.'x. x
+succ = 'n.'f.'x. f (n f x)
+pred = 'n.'f.'x.n ('g.'h.h (g f)) ('u.x) ('u.u)
+plus = 'n.'m.'f. compose (m f) (n f)
+iszero = 'n.n ('x.false) true
+
+show = 'n.n ('x.x 1) 0
+one = succ zero
+two = succ one
+three = succ two
+four = succ three
+five = succ four
+
+fibonacci = Y ('rec.'n. if (iszero (pred n)) (succ zero) (plus (rec (pred n)) (rec (pred (pred n)))))
