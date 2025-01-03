@@ -36,9 +36,10 @@ they appear as the first term in an application. This enables self-referential
 definitions. For example, `Y` above could equally have been defined by `Y = 'f.f (Y f)`.
 The binding can be removed by entering `!unset Y`.
 
-Finally, the program can be passed a file name as a command line argument, causing
-it to first interpret all lines in the file before launching the REPL. This allows
-experimenting with the use of the lamdba calculus as a programming language. For example,
+Finally, the program can be passed file names as a command line argument, causing
+it to first process all lines in the given file before launching the REPL. This allows
+experimenting with the use of the lamdba calculus as a programming language (a pretty
+limited one obviously, as there is no way to interact with the system). For example,
 the included file `church.lc` contains a definition of the Fibonacci numbers using
 Church-encoded numerals:
 ```

@@ -16,7 +16,7 @@ typedef struct term term;
 bool strat_innermost = false;
 bool strat_weak = true;
 bool single_step = false;
-bool silent = false;
+bool echo = false;
 
 /****** Symbols **********/
 
@@ -222,7 +222,6 @@ bool step_pause() {
 	return true;
 }
 
-// todo report error
 void process_line(char *buf) {
 	term *t = NULL, *s = NULL;
 	sym *x = NULL; rtype rt = NONE;
@@ -238,7 +237,7 @@ void process_line(char *buf) {
 		}
 	} while (!interrupt && (rt = reduce(s)));
 	if (interrupt) printf("Interrupted\n");
-	else if (!single_step && !silent) { pterm(s); fputc('\n', stdout); fflush(stdout); }
+	else if (!single_step && echo) { pterm(s); fputc('\n', stdout); fflush(stdout); }
 cleanup:
 	if (t) tfree(t);
 	interrupt = 0;
@@ -254,20 +253,18 @@ int main(int argc, char *argv[]) {
 	sigaction(SIGINT, &handler, NULL);
 	setlocale(LC_ALL, "");
 
-	if (argc == 2) {
+	int i;
+	for (i = 1; i < argc; i++) {
 		size_t bufsize = 0x10000;
 		buf = calloc(bufsize, 1);
-		FILE *f = fopen(argv[1], "r");
-		if (!f) { perror(argv[1]); return 1; }
-		silent = true;
-		while (fgets(buf, bufsize, f)) {
-			if (0 != strlen(buf) && buf[0] != '\n') process_line(buf);
-		}
-		silent = false;
+		FILE *f = fopen(argv[i], "r");
+		if (!f) { perror(argv[i]); return 1; }
+		while (fgets(buf, bufsize, f)) if (0 != strlen(buf) && buf[0] != '\n') process_line(buf);
 		if (ferror(f)) { perror("fgets"); return 1; }
 		if (fclose(f) == EOF) { perror("fclose"); return 1; }
 		free(buf);
 	}
+	echo = true;
 	using_history();
 	rl_catch_signals = 0;
 	rl_bind_key ('\t', rl_insert);
