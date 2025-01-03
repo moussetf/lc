@@ -16,6 +16,7 @@ typedef struct term term;
 bool strat_innermost = false;
 bool strat_weak = true;
 bool single_step = false;
+bool silent = false;
 
 /****** Symbols **********/
 
@@ -221,40 +222,61 @@ bool step_pause() {
 	return true;
 }
 
-int main() {
+// todo report error
+void process_line(char *buf) {
+	term *t = NULL, *s = NULL;
+	sym *x = NULL; rtype rt = NONE;
+	if (parse(p_cmd, buf)) goto cleanup;
+	t = s = parse(p_expr_or_assmt, buf);
+	if (!s) { printf("no parse\n"); goto cleanup; }
+	if (var(x, s) && x->b) s = x->b;
+	do {
+		if (single_step) {
+			printf("(%lc) ", rt ? rt : L'*');
+			pterm(s); fflush(stdout);
+			if (!step_pause()) { interrupt = true; break; }
+		}
+	} while (!interrupt && (rt = reduce(s)));
+	if (interrupt) printf("Interrupted\n");
+	else if (!single_step && !silent) { pterm(s); fputc('\n', stdout); fflush(stdout); }
+cleanup:
+	if (t) tfree(t);
+	interrupt = 0;
+}
+
+int main(int argc, char *argv[]) {
 	struct sigaction handler;
-	char *buf; sym *x = NULL; rtype rt = NONE;
-	term *t, *s;
+	char *buf;
 
 	handler.sa_handler = sigint;
 	sigemptyset(&handler.sa_mask);
 	handler.sa_flags = 0;
 	sigaction(SIGINT, &handler, NULL);
 	setlocale(LC_ALL, "");
+
+	if (argc == 2) {
+		size_t bufsize = 0x10000;
+		buf = calloc(bufsize, 1);
+		FILE *f = fopen(argv[1], "r");
+		if (!f) { perror(argv[1]); return 1; }
+		silent = true;
+		while (fgets(buf, bufsize, f)) {
+			if (0 != strlen(buf) && buf[0] != '\n') process_line(buf);
+		}
+		silent = false;
+		if (ferror(f)) { perror("fgets"); return 1; }
+		if (fclose(f) == EOF) { perror("fclose"); return 1; }
+		free(buf);
+	}
 	using_history();
 	rl_catch_signals = 0;
 	rl_bind_key ('\t', rl_insert);
 	while ((buf = readline("+ "))) {
-		t = NULL;
-		if (interrupt || strlen(buf) == 0) goto cleanup;
-		add_history(buf);
-		if (parse(p_cmd, buf)) goto cleanup;
-		t = s = parse(p_expr_or_assmt, buf);
-		if (!s) { printf("no parse\n"); goto cleanup; }
-		if (var(x, s) && x->b) s = x->b;
-		do {
-			if (single_step) {
-				printf("(%lc) ", rt ? rt : L'*');
-				pterm(s); fflush(stdout);
-				if (!step_pause()) { interrupt = true; break; }
-			}
-		} while (!interrupt && (rt = reduce(s)));
-		if (interrupt) printf("Interrupted\n");
-		else if (!single_step) { pterm(s); fputc('\n', stdout); fflush(stdout); }
-cleanup:
-		if (t) tfree(t);
+		if (0 != strlen(buf))  {
+			add_history(buf);
+			process_line(buf);
+		}
 		free(buf);
-		interrupt = 0;
 	}
 	return 0;
 }
