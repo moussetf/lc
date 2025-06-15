@@ -54,7 +54,7 @@ sym *symbol(char *name) {
 /****** Terms ************/
 
 struct term {
-	enum typ { VAR, ABS, APP } g; // type of term (variable, abstraction, application
+	enum typ { VAR, ABS, APP } g; // type of term (variable, abstraction, application)
 	union {
 		struct { sym *name; }; // if VAR
 		struct { sym *var; struct term *body; }; // if ABS
