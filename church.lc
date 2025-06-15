@@ -17,5 +17,10 @@ two = succ one
 three = succ two
 four = succ three
 five = succ four
+six = succ five
+seven = succ six
+eight = succ seven
+nine = succ eight
+ten = succ nine
 
 fibonacci = Y ('rec.'n. if (iszero (pred n)) one (plus (rec (pred n)) (rec (pred (pred n)))))

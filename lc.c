@@ -7,8 +7,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <readline/readline.h>
 #include <readline/history.h>
+#include <readline/readline.h>
 
 struct term;
 typedef struct term term;
@@ -20,9 +20,21 @@ bool echo = false;
 
 /****** Symbols **********/
 
-typedef struct sym { char c; int l; term *b; struct sym *gu, *gd, *nx; } sym;
+typedef struct sym {
+	int len; term *bdg;       // symbol properties (length and binding)
+	char c;                   // last character of symbol
+	struct sym *gu, *gd, *nx; // trie pointers (up/down/next)
+} sym;
 
-void psym(sym *s) { if (s) { psym(s->gu); fputc(s->c, stdout); } }
+void print_sym(sym *s) {
+	if (s) {
+		char *buffer = calloc(1+s->len, sizeof(char));
+		int i = s->len;
+		do buffer[--i] = s->c; while ((s = s->gu));
+		fputs(buffer, stdout);
+		free(buffer);
+	}
+}
 
 sym *symbol(char *name) {
 	static sym *symtab = NULL;
@@ -32,7 +44,7 @@ sym *symbol(char *name) {
 		while (*place && (*place)->c != c) place = &(*place)->nx;
 		if (!*place) {
 			*place = calloc(1, sizeof(sym));
-			**place = (sym){.c=c, .l=name-start, .nx=NULL, .gu=node};
+			**place = (sym){.len=name-start, .bdg=NULL, .c=c, .nx=NULL, .gu=node, .gd=NULL};
 		}
 		place = &((node = *place)->gd);
 	}
@@ -41,56 +53,89 @@ sym *symbol(char *name) {
 
 /****** Terms ************/
 
-struct term { enum typ { VAR, ABS, APP } g; sym *x; struct term *t; struct term *s; };
+struct term {
+	enum typ { VAR, ABS, APP } g; // type of term (variable, abstraction, application
+	union {
+		struct { sym *name; }; // if VAR
+		struct { sym *var; struct term *body; }; // if ABS
+		struct { struct term *t; struct term *s; }; // if APP
+	};
+};
 
-term *mkvar(sym *x)           { term *r = calloc(1, sizeof(term)); *r = (term){.g=VAR, .x=x};       return r; }
-term *mkabs(sym *x, term *t)  { term *r = calloc(1, sizeof(term)); *r = (term){.g=ABS, .x=x, .t=t}; return r; }
-term *mkapp(term *t, term *s) { term *r = calloc(1, sizeof(term)); *r = (term){.g=APP, .t=t, .s=s}; return r; }
-
-#define var(X, T)    ((T)->g == VAR && ((X) = (T)->x))
-#define abs(X, U, T) ((T)->g == ABS && ((X) = (T)->x) && ((U) = (T)->t))
-#define app(U, V, T) ((T)->g == APP && ((U) = (T)->t) && ((V) = (T)->s))
+term *mkvar(sym *name) {
+	term *r = malloc(sizeof(term));
+	*r = (term){.g=VAR, .name=name};
+	return r;
+}
+term *mkabs(sym *var, term *body) {
+	term *r = malloc(sizeof(term));
+	*r = (term){.g=ABS, .var=var, .body=body};
+	return r;
+}
+term *mkapp(term *t, term *s) {
+	term *r = malloc(sizeof(term));
+	*r = (term){.g=APP, .t=t, .s=s};
+	return r;
+}
 
 void tfree(term *t) {
-	sym *_; term *e, *f;
-	if      (var(_, t))    { free(t); }
-	else if (abs(_, e, t)) { tfree(e); free(t); }
-	else if (app(e, f, t)) { tfree(e); tfree(f); free(t); }
+	switch (t->g) {
+		case VAR: free(t); break;
+		case ABS: tfree(t->body); free(t); break;
+		case APP: tfree(t->s); tfree(t->t); free(t); break;
+	}
 }
 
 term *clone(term *t) {
-	sym *x; term *e, *f;
-	if      (var(x, t))    { return mkvar(x); }
-	else if (abs(x, e, t)) { return mkabs(x, clone(e)); }
-	else if (app(e, f, t)) { return mkapp(clone(e), clone(f)); }
+	switch (t->g) {
+		case VAR: return mkvar(t->name);
+		case ABS: return mkabs(t->var, clone(t->body));
+		case APP: return mkapp(clone(t->t), clone(t->s));
+	}
 }
 
 void sub(term *t, sym *var, term *new) {
-	sym *x; term *e, *f;
-	if      (var(x, t) && x == var)    { *t = *(e = clone(new)); free(e); }
-	else if (abs(x, e, t) && x != var) { sub(e, var, new); }
-	else if (app(e, f, t))             { sub(e, var, new); sub(f, var, new); }
+	term *s;
+	switch (t->g) {
+		case VAR: if (var == t->name) { *t = *(s = clone(new)); free(s); } break;
+		case ABS: if (var != t->var) sub(t->body, var, new); break;
+		case APP: sub(t->t, var, new); sub(t->s, var, new); break;
+	}
 }
 
 void pterm(term *t) {
-	sym *x; term *e, *f, *_;
-	if      (var(x, t))    { psym(x); }
-	else if (abs(x, e, t)) { printf("(%lc", L'λ'); psym(x); printf("."); pterm(e); printf(")"); }
-	else if (app(e, f, t)) { pterm(e); printf(" "); if app(_, _, f) { printf("("); pterm(f); printf(")"); } else { pterm(f); } }
+	switch (t->g) {
+		case VAR: print_sym(t->name); break;
+		case ABS:
+			printf("(%lc", L'λ');
+			print_sym(t->var); printf("."); pterm(t->body);
+			printf(")");
+			break;
+		case APP:
+			pterm(t->t); printf(" ");
+			if (t->s->g == APP) {
+				printf("("); pterm(t->s); printf(")");
+			} else {
+				pterm(t->s);
+			}
+			break;
+	}
 }
 
 bool uses(term *t, sym *var) {
-	sym *x; term *e, *f;
-	if      (var(x, t))    { return x == var; }
-	else if (abs(x, e, t)) { return var == x || uses(e, var); }
-	else if (app(e, f, t)) { return uses(e, var) || uses(f, var); }
+	switch (t->g) {
+		case VAR: return var == t->name;
+		case ABS: return var == t->var || uses(t->body, var);
+		case APP: return uses(t->t, var) || uses(t->s, var);
+	}
 }
 
 bool uses_free(term *t, sym *var) {
-	sym *x; term *e, *f;
-	if      (var(x, t))    { return x == var; }
-	else if (abs(x, e, t)) { return var != x && uses_free(e, var); }
-	else if (app(e, f, t)) { return uses_free(e, var) || uses_free(f, var); }
+	switch (t->g) {
+		case VAR: return var == t->name;
+		case ABS: return var != t->var && uses_free(t->body, var);
+		case APP: return uses_free(t->t, var) || uses_free(t->s, var);
+	}
 }
 
 // Generate a symbol that does not appear in t (generally) or in s (as a free variable)
@@ -114,51 +159,60 @@ typedef enum rtype { NONE = 0, ALPHA = L'α', BETA = L'β', ETA = L'η' , EXP = 
 // 1. they contain var as a free variable in their body, and
 // 2. the abstraction variable appears as a free variable in s
 bool alpha(term *t, sym *var, term *s) {
-	sym *x; term *e, *f, *g;
-	if (abs(x, e, t) && x != var && uses_free(e, var)) {
-		if (uses_free(s, x)) {
-			t->x = gensym(e, s);
-			sub(e, x, (g = mkvar(t->x))); free(g);
-			alpha(e, var, s);
-			return true;
-		}
-		return alpha(e, var, s);
+	term *tmp; sym *x;
+	switch (t->g) {
+		case VAR: return false;
+		case ABS:
+			if ((x = t->var) != var && uses_free(t->body, var)) {
+				if (uses_free(s, t->var)) {
+					t->var = gensym(t->body, s);
+					sub(t->body, x, (tmp = mkvar(t->var)));
+					free(tmp);
+					alpha(t->body, var, s);
+					return true;
+				}
+				return alpha(t->body, var, s);
+			}
+			return false;
+		case APP:
+			return alpha(t->t, var, s) || alpha(t->s, var, s);
 	}
-	else if (app(e, f, t)) {
-		return alpha(e, var, s) || alpha(f, var, s);
-	}
-	return false;
 }
 
 rtype reduce(term *t) {
-	sym *x, *y; term *e, *f, *g; rtype rt;
-	if (abs(x, e, t)) {
-		if (strat_weak) return NONE;
-		if (app(f, g, e) && var(y, g) && y == x && !uses_free(f, x)) {
-			*t = *f;
-			free(e); free(f); free(g);
-			return ETA;
-		}
-		f = x->b; x->b = NULL; rt = reduce(e); x->b = f;
-		return rt;
-	} else if (app(e, f, t)) {
-		if (var(x, e) && x->b) {
-			*e = *(g = clone(x->b)); free(g);
-			return EXP;
-		}
-		else if (strat_innermost && ((rt = reduce(e)) != NONE || (rt = reduce(f)) != NONE)) {
-			return rt;
-		}
-		else if (abs(x, g, e)) {
-			if (alpha(g, x, f)) return ALPHA;
-			else {
-				sub(g, x, f);
-				*t = *g;
-				free(e); tfree(f); free(g);
-				return BETA;
+	term *e, *f, *g; rtype rt;
+	switch (t->g) {
+		case VAR: break;
+		case ABS:
+			if (strat_weak) return NONE;
+			e = t->body; f = e->t; g = e->s;
+			if (e->g == APP && g->g == VAR && g->name == t->var && !uses_free(f, t->var)) {
+				*t = *f;
+				free(e); free(f); free(g);
+				return ETA;
 			}
-		}
-		return (rt = reduce(e)) ? rt : reduce(f);
+			f = t->var->bdg; t->var->bdg = NULL; rt = reduce(t->body); t->var->bdg = f;
+			return rt;
+		case APP:
+			e = t->t; f = t->s;
+			if (e->g == VAR && e->name->bdg) {
+				*e = *(g = clone(e->name->bdg)); free(g);
+				return EXP;
+			}
+			else if (strat_innermost && ((rt = reduce(e)) != NONE || (rt = reduce(f)) != NONE)) {
+				return rt;
+			}
+			else if (e->g == ABS) {
+				if (alpha(e->body, e->var, f)) {
+					return ALPHA;
+				} else {
+					sub(e->body, e->var, f);
+					*t = *e->body;
+					free(e->body); free(e); tfree(f);
+					return BETA;
+				}
+			}
+			return (rt = reduce(e)) ? rt : reduce(f);
 	}
 	return NONE;
 }
@@ -181,7 +235,7 @@ void *parse(void *(*p)(char **), char *buf) { char *b = buf; return p(&b); }
 
 // Expressions and assignments
 parser(p_expr);
-parser(p_symbol) { ws; sym *s = symbol(*buf); if (s) *buf += s->l; return s; }
+parser(p_symbol) { ws; sym *s = symbol(*buf); if (s) *buf += s->len; return s; }
 parser(p_var) { let(x, p_symbol); return mkvar(x); }
 parser(p_apos) { d('\''); success; }
 parser(p_utf8lam) { ws; c('\xce'); c('\xbb'); success; }
@@ -191,7 +245,7 @@ parser(p_parexpr) { d('('); let(t, p_expr); d(')'); return t; }
 parser(p_term) { try(p_var); try(p_parexpr); try(p_abs); fail; }
 parser(p_expr) { let(t, p_term); while (true) { with(s, p_term) { t = mkapp(t, s); } else break; } return t; }
 
-parser(p_assmt) { let(s, p_symbol); d('='); let(t, p_expr); d('\0'); ((sym *)s)->b = t; return mkvar(s); }
+parser(p_assmt) { let(s, p_symbol); d('='); let(t, p_expr); d('\0'); ((sym *)s)->bdg = t; return mkvar(s); }
 parser(p_expr_or_assmt) { try(p_assmt); let(t, p_expr); d('\0'); return t; }
 
 // Commands
@@ -202,7 +256,7 @@ parser(p_toggle) { ws; try(p_on); s("off"); return OFF; }
 parser(p_innermost) { s("!inner "); let(t, p_toggle); strat_innermost = (t == ON); success; }
 parser(p_strong) { s("!strong "); let(t, p_toggle); strat_weak = (t == OFF); success; }
 parser(p_step) { s("!step "); let(t, p_toggle); single_step = (t == ON); success; }
-parser(p_unset) { s("!unset "); let(t, p_symbol); ((sym *)t)->b = NULL; success; }
+parser(p_unset) { s("!unset "); let(t, p_symbol); ((sym *)t)->bdg = NULL; success; }
 parser(p_cmd) { ws; try(p_innermost); try(p_strong); try(p_step); try(p_unset); fail; }
 
 /****** Main loop ********/
@@ -224,11 +278,11 @@ bool step_pause() {
 
 void process_line(char *buf) {
 	term *t = NULL, *s = NULL;
-	sym *x = NULL; rtype rt = NONE;
+	rtype rt = NONE;
 	if (parse(p_cmd, buf)) goto cleanup;
 	t = s = parse(p_expr_or_assmt, buf);
 	if (!s) { printf("no parse\n"); goto cleanup; }
-	if (var(x, s) && x->b) s = x->b;
+	if (s->g == VAR && s->name->bdg) s = s->name->bdg;
 	do {
 		if (single_step) {
 			printf("(%lc) ", rt ? rt : L'*');
