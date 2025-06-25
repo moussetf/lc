@@ -1,12 +1,12 @@
 # lc
 
-A minimal lambda expression REPL based on GNU readline supporting various reduction strategies.
+A minimal lambda expression REPL based on GNU readline.
 
-Compile with `make`.
+Compile with `make` and run with `./lc`.
 
 ## Usage
 
-Enter a lambda expression on the prompt to see how it reduces, as follows:
+Enter a lambda expression on the prompt to see how it reduces:
 
 ```
 + ('a.'b.a b) (a b)
